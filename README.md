@@ -123,7 +123,7 @@ vat (%): 20
 - [1.5, 2, 2.0, -3.1]
 
 **Вывод:**
-![alt text](![alt text](image.png))
+![alt text](images/lab02/image11.png)
 
 **Ввод в unique_sorted:**
 - [3, 1, 2, 1, 3]
@@ -132,7 +132,7 @@ vat (%): 20
 - [1.0, 1, 2.5, 2.5, 0]
 
 **Вывод:**
-![alt text](![alt text](image-1.png))
+![alt text](images/lab02/image12.png)
 
 **Ввод в flatten:**
 - [[1, 2], [3, 4]]
@@ -141,7 +141,7 @@ vat (%): 20
 - [[1, 2], "ab"]
 
 **Вывод:**
-![alt text](![alt text](image-2.png))
+![alt text](images/lab02/image13.png)
 
 # Задание B: matrix.py
 
@@ -168,7 +168,7 @@ vat (%): 20
 - [[1, 2], [3]]
 
 **Вывод:**
-![alt text](image-4.png)
+![alt text](<images/lab02/image B2.png>)
 
 **Ввод в col_sums:**
 - [[1, 2, 3], [4, 5, 6]]
@@ -177,7 +177,7 @@ vat (%): 20
 - [[1, 2], [3]]
 
 **Вывод:**
-![alt text](image-5.png)
+![alt text](<images/lab02/image B3.png>)
 #   Задание C: tuples.py
 
 **Файл:** `src/04_minutes_to_hhmm.py`  
@@ -191,8 +191,7 @@ vat (%): 20
 -  ("  сидорова  анна   сергеевна ", "ABB-01", 3.999)
 
 **Вывод:**
-![alt text](image-6.png)
-
+![alt text](<images/lab02/image С1.png>)
 **Студент:** Никифорова Анастасия Сергеевна
 **Группа:** [БИВТ-25-4]  
 **Преподаватель:** [Жураковский К.В]
