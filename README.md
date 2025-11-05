@@ -377,7 +377,8 @@ write_csv(
 ````
 **Читаймый файл:**
 
-![alt text](image.png)
+
+![alt text](image-2.png)
 
 **Вывод 1:**
 
@@ -438,7 +439,7 @@ for x,y in top[:5]:
 ````
 **Читаймый файл:**
 
-![alt text](image.png)
+![alt text](image-3.png)
 
 **Вывод:**
 ![alt text](<images/lab04/image B1.png>)
