@@ -376,6 +376,7 @@ write_csv(
 
 ````
 **Читаймый файл:**
+
 ![alt text](image.png)
 
 **Вывод 1:**
@@ -436,6 +437,7 @@ for x,y in top[:5]:
     print(f'{x}:{y}')
 ````
 **Читаймый файл:**
+
 ![alt text](image.png)
 
 **Вывод:**
