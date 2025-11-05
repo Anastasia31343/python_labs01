@@ -375,11 +375,6 @@ write_csv(
 )
 
 ````
-**Читаймый файл:**
-
-
-![alt text](image-1.png)
-
 **Вывод 1:**
 
 ![alt text](<images/lab04/image A1.png>)
@@ -437,9 +432,7 @@ print("Топ-5:")
 for x,y in top[:5]:
     print(f'{x}:{y}')
 ````
-**Читаймый файл:**
 
-![alt text](image.png)
 
 **Вывод:**
 ![alt text](<images/lab04/image B1.png>)
