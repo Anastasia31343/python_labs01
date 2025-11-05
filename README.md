@@ -295,3 +295,151 @@ vat (%): 20
 **Студент:** Никифорова Анастасия Сергеевна
 **Группа:** [БИВТ-25-4]  
 **Преподаватель:** [Жураковский К.В]
+# Лабораторная работа №4
+## Файлы: TXT/CSV и отчёты по текстовой статистике
+# Цель работы:
+ закрепить работу с файлами (чтение/запись, кодировки), автоматизировать сбор статистики по словам и выгружать её в CSV.
+
+## Задание A:  модуль src/lab04/io_txt_csv.py
+
+**Файл:** `src/lab04/задание А1.py`  
+
+**Цель:** 
+Реализовать (с докстрингами и типами):
+
+1 read_text(path: str | Path, encoding: str = "utf-8") -> str
+
+- Открыть файл на чтение в указанной кодировке и вернуть содержимое как одну строку.
+
+- Обрабатывать ошибки: если файл не найден — поднимать FileNotFoundError (пусть падает), если кодировка не подходит — поднимать UnicodeDecodeError (пусть падает).
+
+- НО: в докстринге опишите, как пользователь может выбрать другую кодировку (пример: encoding="cp1251").
+2 write_csv(rows: list[tuple | list], path: str | Path, header: tuple[str, ...] | None = None) -> None
+
+- Создать/перезаписать CSV с разделителем ,.
+- Если передан header, записать его первой строкой.
+- Проверить, что каждая строка в rows имеет одинаковую длину (иначе ValueError).
+
+````
+import sys
+import os
+
+# Добавляем корневую директорию в путь
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, ROOT_DIR)
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+
+from lib.text import normalize, tokenize, count_freq, top_n
+
+from pathlib import Path
+import csv
+from typing import Iterable, Sequence
+from collections import Counter
+
+
+def read_text(path: str | Path, encoding: str = "utf-8") -> str:
+    p = Path(path)
+    return p.read_text(encoding=encoding)
+
+
+def write_csv(rows: Iterable[Sequence], path: str | Path,
+              header: tuple[str, ...] | None = None) -> None:
+    p = Path(path)
+    rows = list(rows)
+    with p.open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        if header is not None:
+            w.writerow(header)
+        for r in rows:
+            w.writerow(r)
+
+
+
+def frequencies_from_text(text: str) -> dict[str, int]:
+    tokens = tokenize(normalize(text))
+    return Counter(tokens)  # Используем функцию из вашей библиотеки
+
+
+def sorted_word_counts(freq: dict[str, int]) -> list[tuple[str, int]]:
+    return sorted(freq.items(), key=lambda kv: (-kv[1], kv[0]))
+
+
+txt = read_text("data/input.txt")  # должен вернуть строку
+data=[i for i in top_n(count_freq(tokenize(normalize(txt))),n=5)]
+write_csv(
+    header=("word","count"),
+    rows=data,
+    path = "data/check.csv" ,
+)
+
+````
+**Читаймый файл:**
+![alt text](image.png)
+
+**Вывод 1:**
+
+![alt text](image-2.png)
+
+ **Вывод 2:**
+
+![alt text](<images/lab04/image A2.png>)
+
+
+# Задание B: скрипт src/lab04/text_report.py
+
+**Файл:** `src/lab04/задание В1.py`
+
+**Цель:** Написать скрипт, который:
+
+1. Читает один входной файл data/input.txt (путь можно захардкодить или принять параметром командной строки — опишите в README).
+2. Нормализует текст (lib/text.py), токенизирует и считает частоты слов.
+3. Сохраняет data/report.csv c колонками: word,count, отсортированными: count ↓, слово ↑ (при равенстве).
+4. В консоль печатает краткое резюме:
+- Всего слов: <N>
+- Уникальных слов: <K>
+- Топ-5: (список из top_n из ЛР3)
+
+````
+import sys
+import os
+from pathlib import Path
+
+# Добавляем корневую директорию в путь для импорта lib
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, ROOT_DIR)
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from lib.text import normalize, tokenize, count_freq, top_n
+
+from lab04.io_txt_csv import read_text, write_csv
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+
+input_path = PROJECT_ROOT / "data" / "input.txt"
+output_path = PROJECT_ROOT / "data" / "report.csv"
+p = read_text(input_path)
+norm_p=normalize(p)
+tokens=tokenize(norm_p)
+count_word=count_freq(tokens)
+top=top_n(count_freq(tokenize(normalize(p))))
+
+write_csv(top, output_path, ["word", "count"])
+
+print("Всего слов:", len(tokens))
+print("Уникальных слов:", len(count_word))
+print("Топ-5:")
+for x,y in top[:5]:
+    print(f'{x}:{y}')
+````
+**Читаймый файл:**
+![alt text](image.png)
+
+**Вывод:**
+![alt text](<images/lab04/image B1.png>)
+**Студент:** Никифорова Анастасия Сергеевна
+**Группа:** [БИВТ-25-4]  
+**Преподаватель:** [Жураковский К.В]
