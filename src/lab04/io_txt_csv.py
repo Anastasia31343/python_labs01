@@ -1,7 +1,6 @@
 import sys
 import os
 
-# Добавляем корневую директорию в путь
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, ROOT_DIR)
 
@@ -43,16 +42,5 @@ def frequencies_from_text(text: str) -> dict[str, int]:
 def sorted_word_counts(freq: dict[str, int]) -> list[tuple[str, int]]:
     return sorted(freq.items(), key=lambda kv: (-kv[1], kv[0]))
 
-'''
-txt = read_text("data/input.txt")  # должен вернуть строку
-data=[i for i in top_n(count_freq(tokenize(normalize(txt))),n=5)]
-write_csv(
-    header=("word","count"),
-    rows=data,
-    path = "data/check.csv" ,
-)
-
-'''
-
-txt = read_text("data/input.txt")  # должен вернуть строку
-write_csv([("word","count"),("test",3)], "data/check.csv")  # создаст CSV
+txt = read_text("data/input.txt") 
+write_csv([("word","count"),("test",3)], "data/check.csv") 

@@ -42,7 +42,7 @@ def sorted_word_counts(freq: dict[str, int]) -> list[tuple[str, int]]:
     return sorted(freq.items(), key=lambda kv: (-kv[1], kv[0]))
 
 
-txt = read_text("data/input.txt") 
+txt = read_text("data/input.txt")
 data=[i for i in top_n(count_freq(tokenize(normalize(txt))),n=5)]
 write_csv(
     header=("word","count"),
