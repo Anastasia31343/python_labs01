@@ -324,7 +324,6 @@ vat (%): 20
 import sys
 import os
 
-# Добавляем корневую директорию в путь
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, ROOT_DIR)
 
@@ -356,17 +355,16 @@ def write_csv(rows: Iterable[Sequence], path: str | Path,
             w.writerow(r)
 
 
-
 def frequencies_from_text(text: str) -> dict[str, int]:
     tokens = tokenize(normalize(text))
-    return Counter(tokens)  # Используем функцию из вашей библиотеки
+    return Counter(tokens) 
 
 
 def sorted_word_counts(freq: dict[str, int]) -> list[tuple[str, int]]:
     return sorted(freq.items(), key=lambda kv: (-kv[1], kv[0]))
 
 
-txt = read_text("data/input.txt")  # должен вернуть строку
+txt = read_text("data/input.txt") 
 data=[i for i in top_n(count_freq(tokenize(normalize(txt))),n=5)]
 write_csv(
     header=("word","count"),
@@ -403,7 +401,6 @@ import sys
 import os
 from pathlib import Path
 
-# Добавляем корневую директорию в путь для импорта lib
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, ROOT_DIR)
 
