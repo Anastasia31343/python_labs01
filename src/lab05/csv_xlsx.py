@@ -1,50 +1,78 @@
+import json
 import csv
 from pathlib import Path
-from openpyxl import Workbook
-from openpyxl.utils import get_column_letter
 
+def json_to_csv(json_path: str, csv_path: str) -> None:
+    """
+    Преобразует JSON-файл в CSV.
+    Поддерживает список словарей [{...}, {...}], заполняет отсутствующие поля пустыми строками.
+    Кодировка UTF-8. Порядок колонок — как в первом объекте или алфавитный (указать в README).
+    """
+        # проверка: пути должны быть относительные
+    if Path(json_path).is_absolute():
+        raise ValueError("путь к JSON должен быть относительным")
+    if Path(csv_path).is_absolute():
+        raise ValueError("путь к CSV должен быть относительным")
+    
+    # проверка расширенийй
+    if not json_path.lower().endswith('.json'):
+        raise ValueError("нэ JSON")
+    if not csv_path.lower().endswith('.csv'):
+        raise ValueError("нэ CSV")
+    
+    # проверка файлов
+    if not Path(json_path).exists():
+        raise FileNotFoundError(f"файл не найден: {json_path}")
+    
+    # читааем JSON
+    with open(json_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    # проверяяем данные
+    if not data:
+        raise ValueError("пустой JSON")
+    if not isinstance(data, list):
+        raise ValueError("JSON должен быть списком")
+    if not all(isinstance(item, dict) for item in data):
+        raise ValueError("все элементы должны быть словарями")
+    
+    # поля в алфавитном порядке
+    fields = sorted(data[0].keys())
+    
+    # запись CSV
+    Path(csv_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for row in data:
+            complete_row = {field: str(row.get(field, '')) for field in fields}
+            writer.writerow(complete_row)
 
-def csv_to_xlsx(csv_path: str, xlsx_path: str) -> None:
+def csv_to_json(csv_path: str, json_path: str) -> None:
+    """
+    Преобразует CSV в JSON (список словарей).
+    Заголовок обязателен, значения сохраняются как строки.
+    json.dump(..., ensure_ascii=False, indent=2)
+    """
+    # проверка расширений
+    if not csv_path.lower().endswith('.csv'):
+        raise ValueError("нэ CSV")
+    if not json_path.lower().endswith('.json'):
+        raise ValueError("нэ SON")
     
-    csv_file = Path(csv_path)
-    xlsx_file = Path(xlsx_path)
+    # проверка файлов
+    if not Path(csv_path).exists():
+        raise FileNotFoundError(f"файл не найден: {csv_path}")
     
-    if not csv_file.exists():
-        raise FileNotFoundError(f"CSV file not found: {csv_path}")
+    # читаеем CSV
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        data = list(csv.DictReader(f))
     
-    rows = []
-    with csv_file.open('r', encoding='utf-8') as f:
-        try:
-            reader = csv.reader(f)
-            rows = list(reader)
-        except csv.Error as e:
-            raise ValueError(f"Invalid CSV format: {e}")
+    # проверяяем данные
+    if not data:
+        raise ValueError("пустой CSV")
     
-    if not rows:
-        raise ValueError("Empty CSV file")
-    
-    xlsx_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    workbook = Workbook()
-    worksheet = workbook.active
-    worksheet.title = "Sheet1"
-    
-    for row_idx, row_data in enumerate(rows, 1):
-        for col_idx, cell_value in enumerate(row_data, 1):
-            worksheet.cell(row=row_idx, column=col_idx, value=cell_value)
-    
-    for column_cells in worksheet.columns:
-        max_length = 0
-        column_letter = get_column_letter(column_cells[0].column)
-        
-        for cell in column_cells:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except:
-                pass
-        
-        adjusted_width = max(max_length + 2, 8)
-        worksheet.column_dimensions[column_letter].width = adjusted_width
-    
-    workbook.save(xlsx_file)
+    # запись JSON
+    Path(json_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)

@@ -1,77 +1,52 @@
-
-import json
 import csv
 from pathlib import Path
-from typing import List, Dict, Any
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
 
+def csv_to_xlsx(csv_path: str, xlsx_path: str) -> None:
+    """
+    Конвертирует CSV в XLSX.
+    Использовать openpyx1 ИЛИ xlsxwriter.
+    Первая строка CSV — заголовок.
+    Лист называется "Sheet1".
+    Колонки — автоширина по длине текста (не менее 8 символов).
+    """
+       # проверка
+    if Path(csv_path).is_absolute() or Path(xlsx_path).is_absolute():
+        raise ValueError("пути должн быть относительными")
+    if not csv_path.endswith('.csv') or not xlsx_path.endswith('.xlsx'):
+        raise ValueError("неверные расширения файлов")
+    if not Path(csv_path).exists():
+        raise FileNotFoundError(f"файл не найден: {csv_path}")
+    
+    # читаеем CSV
+    with open(csv_path, "r", encoding="utf-8") as f:
+        rows = list(csv.reader(f))
+    
+    if not rows or not any(rows[0]):
+        raise ValueError("пустой CSV или нет заголовка")
+    
+    # создаем Excel
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    
+    # записываем данные и считаем ширину
+    max_lengths = []
+    for row in rows:
+        ws.append(row)
+        for i, value in enumerate(row):
+            if i >= len(max_lengths):
+                max_lengths.append(0)
+            max_lengths[i] = max(max_lengths[i], len(str(value or "")))
+    
+    # устанавливаем ширину колонок
+    for i, length in enumerate(max_lengths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = max(length + 2, 8)
+    
+    # сохраняем
+    Path(xlsx_path).parent.mkdir(parents=True, exist_ok=True)
+    wb.save(xlsx_path)
 
-def json_to_csv(json_path: str, csv_path: str) -> None:
-
-    json_file = Path(json_path)
-    csv_file = Path(csv_path)
-    
-    if not json_file.exists():
-        raise FileNotFoundError(f"JSON file not found: {json_path}")
-    
-    try:
-        with json_file.open('r', encoding='utf-8') as f:
-            data = json.load(f)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON format: {e}")
-    
-    if not isinstance(data, list):
-        raise ValueError("JSON must contain a list of objects")
-    
-    if not data:
-        raise ValueError("Empty JSON array")
-    
-    if not all(isinstance(item, dict) for item in data):
-        raise ValueError("All JSON array elements must be objects")
-    
-    all_keys = set()
-    for item in data:
-        all_keys.update(item.keys())
-    fieldnames = sorted(all_keys)
-    
-    if not fieldnames:
-        raise ValueError("No valid fields found in JSON objects")
-    
-    csv_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    with csv_file.open('w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        
-        for item in data:
-            row = {key: item.get(key, '') for key in fieldnames}
-            row = {k: str(v) for k, v in row.items()}
-            writer.writerow(row)
-
-
-def csv_to_json(csv_path: str, json_path: str) -> None:
-    
-    csv_file = Path(csv_path)
-    json_file = Path(json_path)
-    
-    if not csv_file.exists():
-        raise FileNotFoundError(f"CSV file not found: {csv_path}")
-   
-    rows = []
-    with csv_file.open('r', encoding='utf-8') as f:
-        try:
-            reader = csv.DictReader(f)
-            if reader.fieldnames is None:
-                raise ValueError("CSV file has no headers")
-            
-            rows = list(reader)
-            
-        except csv.Error as e:
-            raise ValueError(f"Invalid CSV format: {e}")
-    
-    if not rows:
-        raise ValueError("Empty CSV file")
-    
-    json_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    with json_file.open('w', encoding='utf-8') as f:
-        json.dump(rows, f, ensure_ascii=False, indent=2)
+if __name__ == "__main__":
+    csv_to_xlsx("data/samples/people.csv", "data/out/people.xlsx")
