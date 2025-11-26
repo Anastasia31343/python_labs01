@@ -526,7 +526,7 @@ def csv_to_json(csv_path: str, json_path: str) -> None:
 ![alt text](images/lab05/image(people.json).png)
 ![alt text](images/lab05/image(people_from_json.csv).png)
 
-## Задание A (csv_xlsx.py)
+## Задание B (json_csv.py)
 
 ````
 import csv
