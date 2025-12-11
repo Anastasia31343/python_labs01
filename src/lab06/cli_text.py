@@ -1,147 +1,78 @@
-#!/usr/bin/env python3
-"""
-CLI утилиты для работы с текстом: cat и stats
-"""
-
 import argparse
-import sys
-import os
 from pathlib import Path
+import re
+from collections import Counter
 
-# Импорт функций из lab03 (предполагаем, что они существуют)
-# Для демонстрации создадим упрощенные версии, если оригинальные недоступны
+def normalize(text):
+    text = text.lower()
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
 
-def read_file_lines(filepath):
-    """Чтение файла построчно"""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        return f.readlines()
+def tokenize(text):
+    return re.findall(r'\b[a-zа-яё0-9]+\b', text, re.IGNORECASE)
 
-def word_frequency_analysis(text, top_n=5):
-    """
-    Анализ частот слов в тексте
-    Возвращает список кортежей (слово, частота) отсортированный по убыванию частоты
-    """
-    # Простая реализация для демонстрации
-    words = text.lower().split()
-    word_count = {}
-    
+def count_freq(words):
+    freq = {}
     for word in words:
-        # Очистка от знаков препинания
-        word = word.strip('.,!?;:"()[]{}')
-        if word:
-            word_count[word] = word_count.get(word, 0) + 1
-    
-    # Сортировка по частоте (убывание)
-    sorted_words = sorted(word_count.items(), key=lambda x: x[1], reverse=True)
-    return sorted_words[:top_n]
+        freq[word] = freq.get(word, 0) + 1
+    return freq
 
-def cat_command(args):
-    """Реализация команды cat"""
-    input_path = Path(args.input)
-    
-    if not input_path.exists():
-        print(f"Ошибка: файл '{args.input}' не найден")
-        sys.exit(1)
-    
-    try:
-        lines = read_file_lines(input_path)
-        for i, line in enumerate(lines, 1):
-            if args.n:
-                # Вывод с нумерацией
-                print(f"{i:6d}  {line.rstrip()}")
-            else:
-                # Вывод без нумерации
-                print(line.rstrip())
-    except Exception as e:
-        print(f"Ошибка при чтении файла: {e}")
-        sys.exit(1)
+def top_n(freq, n=5):
+    sorted_items = sorted(freq.items(), key=lambda x: (-x[1], x[0]))
+    return sorted_items[:n]
 
-def stats_command(args):
-    """Реализация команды stats"""
-    input_path = Path(args.input)
-    
-    if not input_path.exists():
-        print(f"Ошибка: файл '{args.input}' не найден")
-        sys.exit(1)
-    
-    try:
-        with open(input_path, 'r', encoding='utf-8') as f:
-            text = f.read()
-        
-        top_words = word_frequency_analysis(text, args.top)
-        
-        print(f"Топ-{args.top} самых частых слов в файле '{args.input}':")
-        print("-" * 40)
-        print(f"{'Слово':<20} {'Частота':<10}")
-        print("-" * 40)
-        
-        for word, count in top_words:
-            print(f"{word:<20} {count:<10}")
-            
-    except Exception as e:
-        print(f"Ошибка при анализе текста: {e}")
-        sys.exit(1)
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="CLI утилиты для работы с текстом",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Примеры использования:
-  python -m src.lab06.cli_text cat --input data/samples/text.txt -n
-  python -m src.lab06.cli_text stats --input data/samples/text.txt --top 10
-        """
-    )
-    
-    subparsers = parser.add_subparsers(
-        dest="command",
-        title="доступные команды",
-        required=True,
-        help="выберите команду для выполнения"
-    )
-    
-    # Подкоманда cat
-    cat_parser = subparsers.add_parser(
-        "cat",
-        help="вывести содержимое текстового файла"
-    )
-    cat_parser.add_argument(
-        "--input", "-i",
-        required=True,
-        help="путь к входному файлу"
-    )
-    cat_parser.add_argument(
-        "-n",
-        action="store_true",
-        help="нумеровать строки при выводе"
-    )
-    cat_parser.set_defaults(func=cat_command)
-    
-    # Подкоманда stats
-    stats_parser = subparsers.add_parser(
-        "stats",
-        help="анализ частотности слов в тексте"
-    )
-    stats_parser.add_argument(
-        "--input", "-i",
-        required=True,
-        help="путь к входному текстовому файлу"
-    )
+    parser = argparse.ArgumentParser(description="CLI-утилиты лабораторной №6")
+
+    subparsers = parser.add_subparsers(dest="command", help="Доступные команды", required=True)
+
+    stats_parser = subparsers.add_parser("stats", help="Частоты слов в тексте")
+    stats_parser.add_argument("--input", required=True, help="Входной текстовый файл")
     stats_parser.add_argument(
         "--top",
         type=int,
         default=5,
-        help="количество топ-слов для вывода (по умолчанию: 5)"
+        help="Количество топовых слов (по умолчанию: 5)",
     )
-    stats_parser.set_defaults(func=stats_command)
     
+    cat_parser = subparsers.add_parser("cat", help="Вывод содержимого файла")
+    cat_parser.add_argument("--input", required=True, help="Путь к входному файлу")
+    cat_parser.add_argument("-n", action="store_true", help="Нумеровать строки")
+
     args = parser.parse_args()
-    
-    try:
-        args.func(args)
-    except AttributeError:
-        parser.print_help()
-        sys.exit(1)
+
+    if args.command == "cat":
+        file = Path(args.input)
+        if not file.exists():
+            parser.error(f"Файл '{args.input}' не найден")
+        
+        with open(file, "r", encoding="utf-8") as f:
+            number = 1
+            for row in f:
+                row = row.rstrip("\n")
+                if args.n:  
+                    print(f"{number}: {row}")
+                    number += 1
+                else:
+                    print(row)
+
+    elif args.command == "stats":
+        file = Path(args.input)
+        if not file.exists():
+            parser.error(f"Файл '{args.input}' не найден")
+        
+        with open(file, "r", encoding="utf-8") as f:
+            data = f.read()
+        
+        normalized = normalize(data)
+        tokens = tokenize(normalized)
+        freq = count_freq(tokens)
+        top = top_n(freq, n=args.top)
+        print(f"Топ {args.top} слов:")
+        for i, (word, count) in enumerate(top, 1):
+            print(f"{i}. {word} - {count}")
+
 
 if __name__ == "__main__":
     main()

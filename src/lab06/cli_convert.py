@@ -1,183 +1,157 @@
 import argparse
+from pathlib import Path
 import sys
 import json
 import csv
-from pathlib import Path
+import pandas as pd
 
-def json_to_csv_converter(input_path, output_path):
+
+def json_to_csv(input_file: str, output_file: str):
     try:
-        with open(input_path, 'r', encoding='utf-8') as json_file:
-            data = json.load(json_file)
-        if not data:
-            print("Ошибка: JSON файл пуст или имеет неверный формат")
-            return False
-        headers = list(data[0].keys())
+        with open(input_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
         
-        with open(output_path, 'w', encoding='utf-8', newline='') as csv_file:
-            writer = csv.DictWriter(csv_file, fieldnames=headers)
+        if not isinstance(data, list):
+            data = [data]
+        
+        if not data:
+            raise ValueError("JSON файл пустой")
+        
+        fieldnames = list(data[0].keys())
+        
+        with open(output_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(data)
         
-        print(f"Успешно конвертировано: {input_path} -> {output_path}")
-        print(f"Записей обработано: {len(data)}")
-        return True
+        print(f"Конвертация завершена: {input_file} → {output_file}")
         
     except Exception as e:
-        print(f"Ошибка при конвертации JSON в CSV: {e}")
-        return False
+        sys.stderr.write(f"Ошибка конвертации JSON→CSV: {e}\n")
+        sys.exit(1)
 
-def csv_to_json_converter(input_path, output_path):
+
+def csv_to_json(input_file: str, output_file: str, indent: int = 2):
     try:
-        with open(input_path, 'r', encoding='utf-8') as csv_file:
-            reader = csv.DictReader(csv_file)
-            data = list(reader)
+        data = []
+        with open(input_file, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                data.append(row)
         
-        with open(output_path, 'w', encoding='utf-8') as json_file:
-            json.dump(data, json_file, ensure_ascii=False, indent=2)
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=indent)
         
-        print(f"Успешно конвертировано: {input_path} -> {output_path}")
-        print(f"Записей обработано: {len(data)}")
-        return True
+        print(f"Конвертация завершена: {input_file} → {output_file}")
         
     except Exception as e:
-        print(f"Ошибка при конвертации CSV в JSON: {e}")
-        return False
+        sys.stderr.write(f"Ошибка конвертации CSV→JSON: {e}\n")
+        sys.exit(1)
 
-def csv_to_xlsx_converter(input_path, output_path):
+
+def csv_to_xlsx(input_file: str, output_file: str, sheet_name: str = "Sheet1"):
     try:
-        import warnings
-        warnings.warn("Для полной функциональности установите openpyxl: pip install openpyxl")
-        print(f"Демо-режим: конвертация CSV -> XLSX")
-        print(f"Входной файл: {input_path}")
-        print(f"Выходной файл: {output_path}")
-        print("Для реальной конвертации используйте функции из lab05")
+        df = pd.read_csv(input_file)
+        df.to_excel(output_file, index=False, sheet_name=sheet_name)
         
-        with open(output_path, 'w') as f:
-            f.write("XLSX file placeholder - use lab05 functions for real conversion\n")
+        print(f"Конвертация завершена: {input_file} → {output_file}")
         
-        return True
-        
-    except ImportError:
-        print("Для работы с XLSX файлами требуется библиотека openpyxl")
-        print("Установите её: pip install openpyxl")
-        return False
     except Exception as e:
-        print(f"Ошибка при конвертации CSV в XLSX: {e}")
-        return False
+        sys.stderr.write(f"Ошибка конвертации CSV→XLSX: {e}\n")
+        sys.exit(1)
 
-def validate_paths(input_path, output_path, parser=None):
-    input_path = Path(input_path)
-    output_path = Path(output_path)
-    
-    if not input_path.exists():
-        error_msg = f"Входной файл не найден: {input_path}"
-        if parser:
-            parser.error(error_msg)
-        else:
-            print(error_msg)
-            return False
-    output_dir = output_path.parent
-    if not output_dir.exists():
-        try:
-            output_dir.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            error_msg = f"Не удалось создать директорию {output_dir}: {e}"
-            if parser:
-                parser.error(error_msg)
-            else:
-                print(error_msg)
-                return False
-    
-    return True
-
-def json2csv_command(args):
-    if validate_paths(args.input, args.output):
-        success = json_to_csv_converter(args.input, args.output)
-        sys.exit(0 if success else 1)
-
-def csv2json_command(args):
-    if validate_paths(args.input, args.output):
-        success = csv_to_json_converter(args.input, args.output)
-        sys.exit(0 if success else 1)
-
-def csv2xlsx_command(args):
-    if validate_paths(args.input, args.output):
-        success = csv_to_xlsx_converter(args.input, args.output)
-        sys.exit(0 if success else 1)
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Конвертер данных между форматами JSON, CSV и XLSX",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Примеры использования:
-  python -m src.lab06.cli_convert json2csv --in data.json --out data.csv
-  python -m src.lab06.cli_convert csv2json --in data.csv --out data.json
-  python -m src.lab06.cli_convert csv2xlsx --in data.csv --out data.xlsx
-        """
+        description="Конвертер JSON↔CSV, CSV→XLSX",
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     
     subparsers = parser.add_subparsers(
         dest="command",
-        title="доступные команды конвертации",
-        required=True,
-        help="выберите тип конвертации"
+        title="доступные команды",
+        metavar=""
     )
+    subparsers.required = True
+    
     json2csv_parser = subparsers.add_parser(
         "json2csv",
-        help="конвертировать JSON в CSV"
+        help="Конвертировать JSON в CSV",
+        description="Преобразует JSON файл в CSV формат"
     )
     json2csv_parser.add_argument(
-        "--in", dest="input",
+        "--in",
+        dest="input",
         required=True,
-        help="входной JSON файл"
+        help="Путь к входному JSON"
     )
     json2csv_parser.add_argument(
-        "--out", dest="output",
+        "--out",
+        dest="output",
         required=True,
-        help="выходной CSV файл"
+        help="Путь к выходному CSV"
     )
-    json2csv_parser.set_defaults(func=json2csv_command)
     
     csv2json_parser = subparsers.add_parser(
         "csv2json",
-        help="конвертировать CSV в JSON"
+        help="Конвертировать CSV в JSON",
+        description="Преобразует CSV файл в JSON формат"
     )
     csv2json_parser.add_argument(
-        "--in", dest="input",
+        "--in",
+        dest="input",
         required=True,
-        help="входной CSV файл"
+        help="Путь к входному CSV"
     )
     csv2json_parser.add_argument(
-        "--out", dest="output",
+        "--out",
+        dest="output",
         required=True,
-        help="выходной JSON файл"
+        help="Путь к выходному JSON"
     )
-    csv2json_parser.set_defaults(func=csv2json_command)
+    csv2json_parser.add_argument(
+        "--indent",
+        type=int,
+        default=2,
+        help="Отступ в JSON файле (по умолчанию: 2)"
+    )
     
     csv2xlsx_parser = subparsers.add_parser(
         "csv2xlsx",
-        help="конвертировать CSV в XLSX"
+        help="Конвертировать CSV в XLSX",
+        description="Преобразует CSV файл в Excel формат"
     )
     csv2xlsx_parser.add_argument(
-        "--in", dest="input",
+        "--in",
+        dest="input",
         required=True,
-        help="входной CSV файл"
+        help="Путь к входному CSV"
     )
     csv2xlsx_parser.add_argument(
-        "--out", dest="output",
+        "--out",
+        dest="output",
         required=True,
-        help="выходной XLSX файл"
+        help="Путь к выходному XLSX"
     )
-    csv2xlsx_parser.set_defaults(func=csv2xlsx_command)
+    csv2xlsx_parser.add_argument(
+        "--sheet",
+        default="Sheet1",
+        help="Название листа в Excel (по умолчанию: Sheet1)"
+    )
     
     args = parser.parse_args()
     
-    try:
-        args.func(args)
-    except AttributeError:
-        parser.print_help()
+    if not Path(args.input).exists():
+        sys.stderr.write(f"Ошибка: входной файл '{args.input}' не найден\n")
         sys.exit(1)
+    
+    if args.command == "json2csv":
+        json_to_csv(args.input, args.output)
+    elif args.command == "csv2json":
+        csv_to_json(args.input, args.output, getattr(args, 'indent', 2))
+    elif args.command == "csv2xlsx":
+        csv_to_xlsx(args.input, args.output, getattr(args, 'sheet', 'Sheet1'))
+
 
 if __name__ == "__main__":
     main()

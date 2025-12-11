@@ -564,3 +564,613 @@ if __name__ == "__main__":
 **Студент:** Никифорова Анастасия Сергеевна
 **Группа:** [БИВТ-25-4]  
 **Преподаватель:** [Жураковский К.В]
+# Лабораторная работа №6
+## Задание A (cli_convert.py)
+
+```Python
+import argparse
+from pathlib import Path
+import sys
+import json
+import csv
+import pandas as pd
+
+
+def json_to_csv(input_file: str, output_file: str):
+    try:
+        with open(input_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        if not isinstance(data, list):
+            data = [data]
+        
+        if not data:
+            raise ValueError("JSON файл пустой")
+        
+        fieldnames = list(data[0].keys())
+        
+        with open(output_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(data)
+        
+        print(f"Конвертация завершена: {input_file} → {output_file}")
+        
+    except Exception as e:
+        sys.stderr.write(f"Ошибка конвертации JSON→CSV: {e}\n")
+        sys.exit(1)
+
+
+def csv_to_json(input_file: str, output_file: str, indent: int = 2):
+    try:
+        data = []
+        with open(input_file, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                data.append(row)
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=indent)
+        
+        print(f"Конвертация завершена: {input_file} → {output_file}")
+        
+    except Exception as e:
+        sys.stderr.write(f"Ошибка конвертации CSV→JSON: {e}\n")
+        sys.exit(1)
+
+
+def csv_to_xlsx(input_file: str, output_file: str, sheet_name: str = "Sheet1"):
+    try:
+        df = pd.read_csv(input_file)
+        df.to_excel(output_file, index=False, sheet_name=sheet_name)
+        
+        print(f"Конвертация завершена: {input_file} → {output_file}")
+        
+    except Exception as e:
+        sys.stderr.write(f"Ошибка конвертации CSV→XLSX: {e}\n")
+        sys.exit(1)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Конвертер JSON↔CSV, CSV→XLSX",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    
+    subparsers = parser.add_subparsers(
+        dest="command",
+        title="доступные команды",
+        metavar=""
+    )
+    subparsers.required = True
+    
+    json2csv_parser = subparsers.add_parser(
+        "json2csv",
+        help="Конвертировать JSON в CSV",
+        description="Преобразует JSON файл в CSV формат"
+    )
+    json2csv_parser.add_argument(
+        "--in",
+        dest="input",
+        required=True,
+        help="Путь к входному JSON"
+    )
+    json2csv_parser.add_argument(
+        "--out",
+        dest="output",
+        required=True,
+        help="Путь к выходному CSV"
+    )
+    
+    csv2json_parser = subparsers.add_parser(
+        "csv2json",
+        help="Конвертировать CSV в JSON",
+        description="Преобразует CSV файл в JSON формат"
+    )
+    csv2json_parser.add_argument(
+        "--in",
+        dest="input",
+        required=True,
+        help="Путь к входному CSV"
+    )
+    csv2json_parser.add_argument(
+        "--out",
+        dest="output",
+        required=True,
+        help="Путь к выходному JSON"
+    )
+    csv2json_parser.add_argument(
+        "--indent",
+        type=int,
+        default=2,
+        help="Отступ в JSON файле (по умолчанию: 2)"
+    )
+    
+    csv2xlsx_parser = subparsers.add_parser(
+        "csv2xlsx",
+        help="Конвертировать CSV в XLSX",
+        description="Преобразует CSV файл в Excel формат"
+    )
+    csv2xlsx_parser.add_argument(
+        "--in",
+        dest="input",
+        required=True,
+        help="Путь к входному CSV"
+    )
+    csv2xlsx_parser.add_argument(
+        "--out",
+        dest="output",
+        required=True,
+        help="Путь к выходному XLSX"
+    )
+    csv2xlsx_parser.add_argument(
+        "--sheet",
+        default="Sheet1",
+        help="Название листа в Excel (по умолчанию: Sheet1)"
+    )
+    
+    args = parser.parse_args()
+    
+    if not Path(args.input).exists():
+        sys.stderr.write(f"Ошибка: входной файл '{args.input}' не найден\n")
+        sys.exit(1)
+    
+    if args.command == "json2csv":
+        json_to_csv(args.input, args.output)
+    elif args.command == "csv2json":
+        csv_to_json(args.input, args.output, getattr(args, 'indent', 2))
+    elif args.command == "csv2xlsx":
+        csv_to_xlsx(args.input, args.output, getattr(args, 'sheet', 'Sheet1'))
+
+
+if __name__ == "__main__":
+    main()
+```
+![alt text](images/lab06/вывод(cli_convert)01.png)
+![alt text](images/lab06/вывод(cli_convert)02.png)
+![alt text](images/lab06/вывод(cli_convert)03.png)
+
+## Задание B (cli_text.py)
+
+``` py
+import argparse
+from pathlib import Path
+import re
+from collections import Counter
+
+def normalize(text):
+    text = text.lower()
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
+def tokenize(text):
+    return re.findall(r'\b[a-zа-яё0-9]+\b', text, re.IGNORECASE)
+
+def count_freq(words):
+    freq = {}
+    for word in words:
+        freq[word] = freq.get(word, 0) + 1
+    return freq
+
+def top_n(freq, n=5):
+    sorted_items = sorted(freq.items(), key=lambda x: (-x[1], x[0]))
+    return sorted_items[:n]
+
+
+def main():
+    parser = argparse.ArgumentParser(description="CLI-утилиты лабораторной №6")
+
+    subparsers = parser.add_subparsers(dest="command", help="Доступные команды", required=True)
+
+    stats_parser = subparsers.add_parser("stats", help="Частоты слов в тексте")
+    stats_parser.add_argument("--input", required=True, help="Входной текстовый файл")
+    stats_parser.add_argument(
+        "--top",
+        type=int,
+        default=5,
+        help="Количество топовых слов (по умолчанию: 5)",
+    )
+    
+    cat_parser = subparsers.add_parser("cat", help="Вывод содержимого файла")
+    cat_parser.add_argument("--input", required=True, help="Путь к входному файлу")
+    cat_parser.add_argument("-n", action="store_true", help="Нумеровать строки")
+
+    args = parser.parse_args()
+
+    if args.command == "cat":
+        file = Path(args.input)
+        if not file.exists():
+            parser.error(f"Файл '{args.input}' не найден")
+        
+        with open(file, "r", encoding="utf-8") as f:
+            number = 1
+            for row in f:
+                row = row.rstrip("\n")
+                if args.n:  
+                    print(f"{number}: {row}")
+                    number += 1
+                else:
+                    print(row)
+
+    elif args.command == "stats":
+        file = Path(args.input)
+        if not file.exists():
+            parser.error(f"Файл '{args.input}' не найден")
+        
+        with open(file, "r", encoding="utf-8") as f:
+            data = f.read()
+        
+        normalized = normalize(data)
+        tokens = tokenize(normalized)
+        freq = count_freq(tokens)
+        top = top_n(freq, n=args.top)
+        print(f"Топ {args.top} слов:")
+        for i, (word, count) in enumerate(top, 1):
+            print(f"{i}. {word} - {count}")
+
+
+if __name__ == "__main__":
+    main()
+```
+![alt text](images/lab06/вывод(cli_text)01.png)
+![alt text](images/lab06/вывод(cli_text)02.png)
+![alt text](images/lab06/вывод(cli_text)03.png)
+**Студент:** Никифорова Анастасия Сергеевна
+**Группа:** [БИВТ-25-4]  
+**Преподаватель:** [Жураковский К.В]
+# Лабораторная работа №7
+## Задание A (test_json_csv)
+```py
+import json, csv
+from pathlib import Path
+import pytest
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+from .csv_json import json_to_csv, csv_to_json
+
+
+def write_json(path: Path, obj):
+    path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def read_csv_rows(path: Path):
+    with path.open(encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def test_json_to_csv_roundtrip(tmp_path: Path):
+    src = tmp_path / "people.json"
+    dst = tmp_path / "people.csv"
+    data = [{"name": "Alice", "age": 22}, {"name": "Bob", "age": 25}]
+    write_json(src, data)
+
+    json_to_csv(str(src), str(dst))
+    rows = read_csv_rows(dst)
+    assert len(rows) == 2
+    assert set(rows[0]) >= {"name", "age"}
+
+
+def test_csv_to_json_roundtrip(tmp_path: Path):
+    src = tmp_path / "people.csv"
+    dst = tmp_path / "people.json"
+    src.write_text("name,age\nAlice,22\nBob,25\n", encoding="utf-8")
+
+    csv_to_json(str(src), str(dst))
+    obj = json.loads(dst.read_text(encoding="utf-8"))
+    assert isinstance(obj, list) and len(obj) == 2
+    assert set(obj[0]) == {"name", "age"}
+
+
+def test_json_to_csv_empty(tmp_path: Path):
+    src = tmp_path / "empty.json"
+    dst = tmp_path / "empty.csv"
+    src.write_text("[]", encoding="utf-8")
+
+    try:
+        json_to_csv(str(src), str(dst))
+        if dst.exists():
+            pass
+    except (ValueError, IndexError):
+        pass
+
+
+def test_csv_to_json_empty(tmp_path: Path):
+    src = tmp_path / "empty.csv"
+    dst = tmp_path / "empty.json"
+    src.write_text("", encoding="utf-8")
+
+    try:
+        csv_to_json(str(src), str(dst))
+        if dst.exists():
+            pass
+    except (ValueError, Exception):
+        pass
+
+
+def test_missing_file(tmp_path: Path):
+    try:
+        csv_to_json("nope.csv", str(tmp_path / "out.json"))
+        if (tmp_path / "out.json").exists():
+            pass
+    except FileNotFoundError:
+        pass
+```
+![alt text](images/lab07/test_json_csv.png)
+## Задание В (test_text)
+```py
+import pytest
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+from src.lib.text import count_freq, normalize, tokenize, top_n
+
+@pytest.mark.parametrize(
+    "src,expected",
+    [
+        ("ПрИвЕт\nМИр\t", "привет мир"),
+        ("ёжик, Ёлка", "ежик, елка"),
+        ("Hello\r\nWorld", "hello world"),
+        ("  двойные   пробелы  ", "двойные пробелы"),
+    ],
+)
+def test_normalize(src, expected):
+    assert normalize(src) == expected
+
+
+@pytest.mark.parametrize(
+    "src,expected",
+    [
+        ("привет мир", ["привет", "мир"]),
+        ("hello,world!!!", ["hello", "world"]),
+        ("по-настоящему круто", ["по-настоящему", "круто"]),
+        ("2025 год", ["2025", "год"]),
+        ("emoji 😀 не слово", ["emoji", "не", "слово"]),
+    ],
+)
+def test_tokenize(src, expected):
+    assert tokenize(src) == expected
+
+
+def test_count_and_top():
+    tokens = ["a", "b", "a", "c", "b", "a"]
+    freq = count_freq(tokens)
+    assert freq == {"a": 3, "b": 2, "c": 1}
+    assert top_n(freq, 2) == [("a", 3), ("b", 2)]
+
+
+def test_top_tie_breaker():
+    freq = count_freq(["bb", "aa", "bb", "aa", "cc"])
+    assert top_n(freq, 2) == [("aa", 2), ("bb", 2)]
+
+
+def test_dop():
+    assert normalize("") == ""
+    assert tokenize("") == []
+    assert count_freq([]) == {}
+    assert top_n({}, 5) == []
+
+
+def test_top_dop():
+    freq = {"a": 3, "b": 2}
+    assert top_n(freq, 5) == [("a", 3), ("b", 2)]
+```
+![alt text](images/lab07/text_test.png)
+**Студент:** Никифорова Анастасия Сергеевна
+**Группа:** [БИВТ-25-4]  
+**Преподаватель:** [Жураковский К.В]
+# Лабораторная работа №7
+## Задание A (models.py)
+```py
+from dataclasses import dataclass, asdict
+from datetime import datetime, date
+from typing import ClassVar
+import re
+
+
+@dataclass
+class Student:
+    
+    fio: str
+    birthdate: str
+    group: str
+    gpa: float
+    
+    DATE_FORMAT: ClassVar[str] = "%Y-%m-%d"
+    GPA_MIN: ClassVar[float] = 0.0
+    GPA_MAX: ClassVar[float] = 5.0
+    
+    def __post_init__(self):
+        self._validate_birthdate()
+        self._validate_gpa()
+        self._validate_fio()
+    
+    def _validate_birthdate(self) -> None:
+        try:
+            datetime.strptime(self.birthdate, self.DATE_FORMAT)
+        except ValueError:
+            raise ValueError(
+                f"Неверный формат даты: {self.birthdate}. "
+                f"Ожидается: {self.DATE_FORMAT}"
+            )
+    
+    def _validate_gpa(self) -> None:
+        if not (self.GPA_MIN <= self.gpa <= self.GPA_MAX):
+            raise ValueError(
+                f"Средний балл {self.gpa} вне допустимого диапазона "
+                f"[{self.GPA_MIN}, {self.GPA_MAX}]"
+            )
+    
+    def _validate_fio(self) -> None:
+        if not self.fio or not self.fio.strip():
+            raise ValueError("ФИО не может быть пустым")
+    
+    def age(self) -> int:
+
+        birth_date = datetime.strptime(self.birthdate, self.DATE_FORMAT).date()
+        today = date.today()
+        
+        age = today.year - birth_date.year
+        
+        if (today.month, today.day) < (birth_date.month, birth_date.day):
+            age -= 1
+        
+        return age
+    
+    def to_dict(self) -> dict:
+        return {
+            "fio": self.fio,
+            "birthdate": self.birthdate,
+            "group": self.group,
+            "gpa": self.gpa,
+            "age": self.age()  
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Student':
+        
+        student_data = {
+            "fio": data["fio"],
+            "birthdate": data["birthdate"],
+            "group": data["group"],
+            "gpa": float(data["gpa"]) 
+        }
+        return cls(**student_data)
+    
+    def __str__(self) -> str:
+        return (f"Студент: {self.fio}\n"
+                f"Группа: {self.group}\n"
+                f"Дата рождения: {self.birthdate} (возраст: {self.age()} лет)\n"
+                f"Средний балл: {self.gpa:.2f}")
+    
+    def __repr__(self) -> str:
+        return (f"Student(fio={self.fio!r}, "
+                f"birthdate={self.birthdate!r}, "
+                f"group={self.group!r}, "
+                f"gpa={self.gpa})")
+
+
+if __name__ == "__main__":
+    try:
+        student1 = Student(
+            fio="Иванов Иван Иванович",
+            birthdate="2000-05-15",
+            group="SE-01",
+            gpa=4.2
+        )
+        
+        print("=== Пример работы класса Student ===")
+        print(student1)
+        print()
+        
+        print("Словарь из объекта:")
+        print(student1.to_dict())
+        print()
+        
+        print("Объект из словаря:")
+        student_dict = {
+            "fio": "Петров Петр Петрович",
+            "birthdate": "1999-11-30",
+            "group": "CS-02",
+            "gpa": 3.8
+        }
+        student2 = Student.from_dict(student_dict)
+        print(student2)
+        
+    except ValueError as e:
+        print(f"Ошибка валидации: {e}")
+```
+![alt text](images/lab08/models.png)
+## Задание B (serialize.py)
+```py
+import json
+from pathlib import Path
+from typing import List
+try:
+    from models import Student
+except ImportError:
+    from .models import Student
+
+
+def students_to_json(students: List[Student], path: str) -> None:
+   
+    if not students:
+        raise ValueError("Список студентов пуст")
+    
+    data = [student.to_dict() for student in students]
+    
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"Данные успешно сохранены в {path}")
+    except IOError as e:
+        raise IOError(f"Не удалось записать файл {path}: {e}")
+
+
+def students_from_json(path: str) -> List[Student]:
+    
+    if not Path(path).exists():
+        raise FileNotFoundError(f"Файл {path} не найден")
+    
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Некорректный JSON в файле {path}: {e}")
+    except IOError as e:
+        raise IOError(f"Не удалось прочитать файл {path}: {e}")
+    
+    if not isinstance(data, list):
+        raise ValueError(f"Ожидался список в файле {path}, получен {type(data)}")
+    
+    students = []
+    errors = []
+    
+    for i, item in enumerate(data):
+        try:
+            student = Student.from_dict(item)
+            students.append(student)
+        except (ValueError, KeyError) as e:
+            errors.append(f"Строка {i}: {e}")
+    
+    if errors:
+        error_msg = "\n".join(errors)
+        raise ValueError(f"Ошибки при загрузке данных:\n{error_msg}")
+    
+    return students
+
+
+if __name__ == "__main__":
+    try:
+        students = [
+            Student("Иванов Иван Иванович", "2000-05-15", "SE-01", 4.2),
+            Student("Петрова Анна Сергеевна", "2001-08-22", "CS-02", 4.8),
+            Student("Сидоров Алексей Петрович", "1999-11-30", "AI-03", 3.5),
+        ]
+        
+        import os
+        current_dir = os.path.dirname(__file__)
+        output_path = os.path.join(current_dir, "..", "..", "data", "lab08", "students_output.json")
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        students_to_json(students, output_path)
+        print(f"\nСтуденты сохранены в {output_path}")
+        
+        print("\nЗагрузка студентов из файла...")
+        loaded_students = students_from_json(output_path)
+        
+        print(f"\nЗагружено {len(loaded_students)} студентов:")
+        for student in loaded_students:
+            print("-" * 30)
+            print(student)
+            
+    except Exception as e:
+        print(f"Ошибка: {e}")
+```
+![alt text](images/lab08/serialize.png)
+**Студент:** Никифорова Анастасия Сергеевна
+**Группа:** [БИВТ-25-4]  
+**Преподаватель:** [Жураковский К.В]
