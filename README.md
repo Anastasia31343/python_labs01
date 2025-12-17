@@ -1174,3 +1174,553 @@ if __name__ == "__main__":
 **Студент:** Никифорова Анастасия Сергеевна
 **Группа:** [БИВТ-25-4]  
 **Преподаватель:** [Жураковский К.В]
+# Лабораторная работа №9
+## Задание A (group.py)
+```py
+import csv
+from pathlib import Path
+from typing import List
+
+# Импортируем Student из ЛР8
+try:
+    from src.lab08.models import Student
+except ImportError:
+    # Для тестирования
+    from dataclasses import dataclass
+    from datetime import datetime, date
+    
+    @dataclass
+    class Student:
+        fio: str
+        birthdate: str
+        group: str
+        gpa: float
+        
+        def age(self) -> int:
+            birth_date = datetime.strptime(self.birthdate, "%Y-%m-%d").date()
+            today = date.today()
+            age = today.year - birth_date.year
+            if (today.month, today.day) < (birth_date.month, birth_date.day):
+                age -= 1
+            return age
+        
+        def to_dict(self) -> dict:
+            # ВАЖНО: Возвращаем только поля, которые должны быть в CSV
+            return {
+                "fio": self.fio,
+                "birthdate": self.birthdate,
+                "group": self.group,
+                "gpa": self.gpa
+            }
+        
+        @classmethod
+        def from_dict(cls, data: dict):
+            return cls(**data)
+
+
+class Group:
+    """
+    Класс для работы с группой студентов, хранящейся в CSV-файле.
+    Реализует CRUD-операции (Create, Read, Update, Delete).
+    """
+    
+    def __init__(self, storage_path: str):
+        """
+        Инициализация группы студентов.
+        
+        Args:
+            storage_path: Путь к CSV-файлу для хранения данных
+        """
+        self.path = Path(storage_path)
+        self._ensure_storage_exists()
+    
+    def _ensure_storage_exists(self) -> None:
+        """
+        Создаёт файл с заголовками, если он не существует.
+        """
+        if not self.path.exists():
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.path, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=["fio", "birthdate", "group", "gpa"])
+                writer.writeheader()
+            print(f"📁 Создан новый файл базы данных: {self.path}")
+    
+    def _read_all(self) -> List[dict]:
+        """
+        Читает все записи из CSV-файла.
+        
+        Returns:
+            Список словарей с данными студентов
+        """
+        with open(self.path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            return list(reader)
+    
+    def _write_all(self, rows: List[dict]) -> None:
+        """
+        Записывает все записи в CSV-файл.
+        
+        Args:
+            rows: Список словарей с данными студентов
+        """
+        # Фильтруем только нужные поля для записи в CSV
+        filtered_rows = []
+        for row in rows:
+            filtered_row = {
+                "fio": row.get("fio", ""),
+                "birthdate": row.get("birthdate", ""),
+                "group": row.get("group", ""),
+                "gpa": row.get("gpa", "")
+            }
+            filtered_rows.append(filtered_row)
+        
+        with open(self.path, 'w', encoding='utf-8', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=["fio", "birthdate", "group", "gpa"])
+            writer.writeheader()
+            writer.writerows(filtered_rows)
+    
+    def list(self) -> List[Student]:
+        """
+        Возвращает список всех студентов.
+        
+        Returns:
+            Список объектов Student
+        """
+        rows = self._read_all()
+        students = []
+        
+        for row in rows:
+            try:
+                # Преобразуем GPA из строки в float
+                if 'gpa' in row and row['gpa']:
+                    row['gpa'] = float(row['gpa'])
+                else:
+                    row['gpa'] = 0.0
+                    
+                student = Student.from_dict(row)
+                students.append(student)
+            except (ValueError, KeyError) as e:
+                print(f"⚠️ Ошибка при чтении студента {row.get('fio', 'unknown')}: {e}")
+        
+        return students
+    
+    def add(self, student: Student) -> None:
+        """
+        Добавляет нового студента в базу данных.
+        
+        Args:
+            student: Объект Student для добавления
+        """
+        # Читаем существующие данные
+        rows = self._read_all()
+        
+        # Добавляем нового студента
+        rows.append(student.to_dict())
+        
+        # Записываем обратно
+        self._write_all(rows)
+        
+        print(f"Студент {student.fio} успешно добавлен")
+    
+    def find(self, substr: str) -> List[Student]:
+        """
+        Ищет студентов по подстроке в ФИО.
+        
+        Args:
+            substr: Подстрока для поиска в ФИО
+            
+        Returns:
+            Список найденных студентов
+        """
+        all_students = self.list()
+        substr_lower = substr.lower()
+        
+        found = [s for s in all_students if substr_lower in s.fio.lower()]
+        
+        if found:
+            print(f"Найдено {len(found)} студентов по запросу '{substr}'")
+        else:
+            print(f"Студенты по запросу '{substr}' не найдены")
+        
+        return found
+    
+    def remove(self, fio: str) -> bool:
+        """
+        Удаляет студента по ФИО.
+        
+        Args:
+            fio: ФИО студента для удаления
+            
+        Returns:
+            True если студент был удалён, False если не найден
+        """
+        rows = self._read_all()
+        original_count = len(rows)
+        
+        # Удаляем всех студентов с указанным ФИО
+        rows = [row for row in rows if row['fio'] != fio]
+        
+        if len(rows) < original_count:
+            self._write_all(rows)
+            print(f"Студент {fio} удалён")
+            return True
+        else:
+            print(f"Студент {fio} не найден")
+            return False
+    
+    def update(self, fio: str, **fields) -> bool:
+        """
+        Обновляет данные студента.
+        
+        Args:
+            fio: ФИО студента для обновления
+            **fields: Поля для обновления (например, gpa=4.5, group="SE-01")
+            
+        Returns:
+            True если студент был обновлён, False если не найден
+        """
+        rows = self._read_all()
+        updated = False
+        
+        for row in rows:
+            if row['fio'] == fio:
+                # Обновляем только допустимые поля
+                for field, value in fields.items():
+                    if field in ["fio", "birthdate", "group", "gpa"]:
+                        row[field] = value
+                    else:
+                        print(f"⚠️ Поле '{field}' не существует в записи студента")
+                updated = True
+                break
+        
+        if updated:
+            self._write_all(rows)
+            print(f"Данные студента {fio} обновлены")
+        else:
+            print(f"⚠️ Студент {fio} не найден")
+        
+        return updated
+    
+    def stats(self) -> dict:
+        """
+        Возвращает статистику по группе.
+        
+        Returns:
+            Словарь со статистикой
+        """
+        students = self.list()
+        
+        if not students:
+            return {
+                "count": 0,
+                "min_gpa": 0,
+                "max_gpa": 0,
+                "avg_gpa": 0,
+                "groups": {},
+                "top_5_students": []
+            }
+        
+        # Основная статистика
+        gpa_values = [s.gpa for s in students]
+        count = len(students)
+        min_gpa = min(gpa_values)
+        max_gpa = max(gpa_values)
+        avg_gpa = sum(gpa_values) / count
+        
+        # Статистика по группам
+        groups = {}
+        for student in students:
+            group = student.group
+            if group not in groups:
+                groups[group] = 0
+            groups[group] += 1
+        
+        # Топ-5 студентов по GPA
+        top_students = sorted(students, key=lambda s: s.gpa, reverse=True)[:5]
+        top_5 = [{"fio": s.fio, "gpa": s.gpa} for s in top_students]
+        
+        return {
+            "count": count,
+            "min_gpa": min_gpa,
+            "max_gpa": max_gpa,
+            "avg_gpa": avg_gpa,
+            "groups": groups,
+            "top_5_students": top_5
+        }
+    
+    def print_table(self) -> None:
+        """
+        Выводит таблицу со списком студентов.
+        """
+        students = self.list()
+        
+        if not students:
+            print("📭 База данных пуста")
+            return
+        
+        print("\n" + "="*80)
+        print(f"{'№':<3} {'ФИО':<30} {'Группа':<12} {'GPA':<6} {'Возраст':<8}")
+        print("="*80)
+        
+        for i, student in enumerate(students, 1):
+            print(f"{i:<3} {student.fio:<30} {student.group:<12} {student.gpa:<6.2f} {student.age():<8}")
+        
+        print("="*80)
+        print(f"Всего студентов: {len(students)}")
+```
+![alt text](image.png)
+## Задание B (test_lab09.py)
+```py
+# test_lab09.py
+import sys
+import os
+sys.path.insert(0, os.path.abspath('.'))
+
+# Импортируем Student из ЛР8
+from src.lab08.models import Student
+from src.lab09.group import Group
+
+def main():
+    print("=== Тестирование класса Group (CRUD операции) ===")
+    
+    # Путь к файлу базы данных
+    db_path = "data/lab09/students.csv"
+    
+    # Создаем объект Group
+    group = Group(db_path)
+    
+    # 1. Проверяем список (должен быть пустым или с данными)
+    print("\n1. Текущий список студентов:")
+    students = group.list()
+    print(f"   В базе: {len(students)} студентов")
+    
+    # 2. Добавляем студентов
+    print("\n2. Добавляем студентов:")
+    
+    student1 = Student(
+        fio="Иванов Иван Иванович",
+        birthdate="2000-05-15",
+        group="SE-01",
+        gpa=4.5
+    )
+    
+    student2 = Student(
+        fio="Петрова Анна Сергеевна",
+        birthdate="2001-02-20",
+        group="SE-02",
+        gpa=4.8
+    )
+    
+    student3 = Student(
+        fio="Сидоров Алексей Петрович",
+        birthdate="1999-11-30",
+        group="SE-01",
+        gpa=3.9
+    )
+    
+    group.add(student1)
+    group.add(student2)
+    group.add(student3)
+    
+    # 3. Выводим таблицу
+    print("\n3. Таблица всех студентов:")
+    group.print_table()
+    
+    # 4. Поиск студентов
+    print("\n4. Поиск студентов по ФИО:")
+    
+    # Поиск по подстроке
+    found = group.find("Иванов")
+    print(f"   Найдено по 'Иванов': {len(found)} студентов")
+    
+    found = group.find("Петр")
+    print(f"   Найдено по 'Петр': {len(found)} студентов")
+    
+    # 5. Обновление данных
+    print("\n5. Обновление данных студента:")
+    
+    # Обновляем GPA у Иванова
+    group.update("Иванов Иван Иванович", gpa=4.7)
+    
+    # Обновляем группу у Петровой
+    group.update("Петрова Анна Сергеевна", group="SE-03")
+    
+    # 6. Удаление студента
+    print("\n6. Удаление студента:")
+    group.remove("Сидоров Алексей Петрович")
+    
+    # 7. Выводим обновленную таблицу
+    print("\n7. Обновленная таблица студентов:")
+    group.print_table()
+    
+    # 8. Статистика
+    print("\n8. Статистика группы:")
+    stats = group.stats()
+    
+    print(f"   Всего студентов: {stats['count']}")
+    print(f"   Минимальный GPA: {stats['min_gpa']:.2f}")
+    print(f"   Максимальный GPA: {stats['max_gpa']:.2f}")
+    print(f"   Средний GPA: {stats['avg_gpa']:.2f}")
+    
+    print(f"   Распределение по группам:")
+    for grp, count in stats['groups'].items():
+        print(f"     - {grp}: {count} студентов")
+    
+    print(f"   Топ-5 студентов:")
+    for i, student in enumerate(stats['top_5_students'], 1):
+        print(f"     {i}. {student['fio']} (GPA: {student['gpa']:.2f})")
+    
+    # 9. Тестирование с твоими данными (если есть)
+    print("\n" + "="*60)
+    print("Тестирование с реальными данными из ЛР8:")
+    
+    try:
+        # Загружаем студентов из ЛР8
+        from src.lab08.serialize import students_from_json
+        real_students = students_from_json("data/lab08/students_input.json")
+        
+        # Создаем новую базу для теста
+        test_db = Group("data/lab09/test_students.csv")
+        
+        # Добавляем реальных студентов
+        for student in real_students:
+            test_db.add(student)
+        
+        print(f"   Добавлено {len(real_students)} студентов")
+        
+        # Выводим статистику
+        real_stats = test_db.stats()
+        print(f"   Средний GPA реальных студентов: {real_stats['avg_gpa']:.2f}")
+        
+    except Exception as e:
+        print(f"   ⚠️ Не удалось загрузить реальные данные: {e}")
+    
+    print("\n✅ Все операции CRUD протестированы успешно!")
+
+if __name__ == "__main__":
+    main()
+```
+![alt text](images/lab09/image01.png)
+![alt text](images/lab09/image02.png)
+![alt text](images/lab09/image03.png)
+**Студент:** Никифорова Анастасия Сергеевна
+**Группа:** [БИВТ-25-4]  
+**Преподаватель:** [Жураковский К.В]
+# Лабораторная работа №8
+## Задание A (linked_list.py)
+```py
+from typing import Any, Optional #Any — любой тип данных, Optional — может быть указанного типа или None
+
+class Node: #Node для узла односвязного списка
+    def __init__(self, value: Any, next_node: Optional['Node'] = None): #'Node' — форвард-декларация
+        self.value = value #сохраняет значение в атрибуте узла
+        self.next = next_node #сохраняет ссылку на следующий узел
+    def __str__(self) -> str:
+        return f"[{self.value}]" #Возвращает строку в формате [значение]
+
+class SinglyLinkedList: #Создаёт класс для односвязного списка
+    def __init__(self):
+        self.head: Optional[Node] = None #ссылка на первый узел списка
+        self.tail: Optional[Node] = None #ссылка на последний узел списка
+        self._size: int = 0 #счётчик количества элементов
+    def append(self, value: Any) -> None:
+        new_node = Node(value)
+        if self.head is None:
+            self.head = self.tail = new_node #если список пуст, новый узел становится и головой, и хвостом
+        else:
+            self.tail.next = new_node #текущий хвостовой узел ссылается на новый узел
+            self.tail = new_node #новый узел становится новым хвостом
+        self._size += 1
+    def __str__(self) -> str:
+        nodes = []
+        current = self.head #начинаем с головы списка
+        while current is not None:
+            nodes.append(str(current)) #добавляем строковое представление текущего узла
+            current = current.next
+        nodes.append("None") #добавляем "None" в конец
+        return " -> ".join(nodes) 
+    def __repr__(self) -> str: #Метод repr для отладки и понятного представления объекта
+        values = []
+        current = self.head
+        while current is not None:
+            values.append(current.value)
+            current = current.next
+        return f"SinglyLinkedList({values})"
+    def __len__(self) -> int: 
+        return self._size #Возвращает значение счётчика _size
+
+if __name__ == "__main__":
+    lst = SinglyLinkedList() #создаёт пустой односвязный список
+    lst.append(6)
+    lst.append(1)
+    lst.append(1.5)
+    print(str(lst))
+```
+[text](src/lab10/linked_list.py) [text](README.md)
+## Задание B (structures.py)
+```py
+from collections import deque #deque нужен для эффективной реализации очереди
+
+class Stack: #Стек — структура данных LIFO
+    def __init__(self):
+        self._data = [] #_data — приватный атрибут
+    def push(self, item): #push — добавляет элемент на вершину стека
+        self._data.append(item) #добавляет элемент в конец списка
+    def pop(self):
+        if self.is_empty():
+            raise IndexError
+        return self._data.pop() #удаляет последний элемент списка и возвращает его
+    def peek(self): #смотрит верхний элемент без удаления
+        if self.is_empty():
+            return None
+        return self._data[-1] #обращение к последнему элементу списка
+    def is_empty(self):
+        return len(self._data) == 0
+    def __len__(self): #вызывается при использовании len(obj)
+        return len(self._data)
+    def __str__(self): #при преобразовании объекта в строку
+        return f"Stack({self._data})" #Возвращает строку вида Stack([элементы])
+
+class Queue: #Очередь — структура данных FIFO
+    def __init__(self):
+        self._data = deque() #создаёт пустую двустороннюю очередь
+    def enqueue(self, item): #добавляет элемент в конец очереди
+        self._data.append(item) #добавляет элемент в правый конец deque
+    def dequeue(self): #удаляет и возвращает элемент из начала очереди
+        if self.is_empty():
+            raise IndexError
+        return self._data.popleft() # удаляет элемент с левого конца deque
+    def peek(self): 
+        if self.is_empty():
+            return None
+        return self._data[0] #обращение к первому элементу deque
+    def is_empty(self):
+        return len(self._data) == 0
+    def __len__(self):
+        return len(self._data)
+    def __str__(self): #Преобразует deque в список для красивого отображения
+        return f"Queue({list(self._data)})"
+
+if __name__ == "__main__":
+    s = Stack() #Демонстрация стека
+    s.push(10)
+    s.push(20)
+    s.push(30)
+    print(s)
+    print(f"peek: {s.peek()}")
+    print(f"pop: {s.pop()}")
+    print(s)
+    print() 
+    q = Queue() #Демонстрация очереди
+    q.enqueue("A")
+    q.enqueue("B")
+    q.enqueue("C")
+    print(q)
+    print(f"peek: {q.peek()}")
+    print(f"dequeue: {q.dequeue()}")
+    print(q)
+```
+[text](src/lab10/linked_list.py) [text](README.md)
+**Студент:** Никифорова Анастасия Сергеевна
+**Группа:** [БИВТ-25-4]  
+**Преподаватель:** [Жураковский К.В]
